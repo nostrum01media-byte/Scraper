@@ -47,6 +47,7 @@ def download_media(urls: list[str], out_dir: str) -> list[str]:
     }
     for url in urls:
         try:
+            st.write(f"Attempting to download: {url}")
             r = requests.get(url, stream=True, timeout=15, headers=headers)
             r.raise_for_status()
             filename = os.path.basename(url.split("?")[0])
@@ -57,8 +58,9 @@ def download_media(urls: list[str], out_dir: str) -> list[str]:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
             saved_files.append(path)
+            st.success(f"Downloaded {filename}")
         except Exception as e:
-            st.warning(f"❌ Failed to download {url}: {e}")
+            st.error(f"❌ Failed to download {url}: {e}")
     return saved_files
 
 st.set_page_config(page_title="Media Scraper", layout="centered")
