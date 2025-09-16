@@ -7,16 +7,23 @@ import requests
 import streamlit as st
 from bs4 import BeautifulSoup
 
+
 def is_media_url(url: str) -> bool:
+    """Check if a URL ends with a common image or video extension."""
     ext = os.path.splitext(urlparse(url).path)[1].lower()
     return ext in {
         ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
         ".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv"
     }
 
+
 def collect_media_links(page_url: str) -> list[str]:
+    """Fetch the page and return absolute URLs of all media files."""
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; MediaScraper/1.0; +https://github.com/nostrum01media-byte/Scraper)"
+        "User-Agent": (
+            "Mozilla/5.0 (compatible; MediaScraper/1.0; "
+            "+https://github.com/nostrum01media-byte/Scraper)"
+        )
     }
     resp = requests.get(page_url, timeout=15, headers=headers)
     resp.raise_for_status()
@@ -24,11 +31,13 @@ def collect_media_links(page_url: str) -> list[str]:
 
     media_urls = set()
 
+    # Images
     for img in soup.find_all("img"):
         src = img.get("src")
         if src:
             media_urls.add(urljoin(page_url, src))
 
+    # Videos and <source> tags inside <video>
     for video in soup.find_all("video"):
         src = video.get("src")
         if src:
@@ -38,12 +47,18 @@ def collect_media_links(page_url: str) -> list[str]:
             if src:
                 media_urls.add(urljoin(page_url, src))
 
+    # Keep only known media extensions
     return [u for u in media_urls if is_media_url(u)]
 
+
 def download_media(urls: list[str], out_dir: str) -> list[str]:
+    """Download each URL into `out_dir`; return list of saved file paths."""
     saved_files = []
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; MediaScraper/1.0; +https://github.com/nostrum01media-byte/Scraper)"
+        "User-Agent": (
+            "Mozilla/5.0 (compatible; MediaScraper/1.0; "
+            "+https://github.com/nostrum01media-byte/Scraper)"
+        )
     }
     for url in urls:
         try:
@@ -63,6 +78,10 @@ def download_media(urls: list[str], out_dir: str) -> list[str]:
             st.error(f"❌ Failed to download {url}: {e}")
     return saved_files
 
+
+# ------------------------------------------------------------
+# Streamlit UI
+# ------------------------------------------------------------
 st.set_page_config(page_title="Media Scraper", layout="centered")
 st.title("🔎 Media Scraper")
 st.caption("Enter a web page URL and download all images & videos found on that page.")
@@ -84,13 +103,16 @@ if st.button("Scrape"):
                     with st.expander("Show raw media URLs"):
                         for u in media_links:
                             st.write(u)
-                    st.success(f"Found **{len(media_links)}** media files.")
+
                     tmp_dir = tempfile.mkdtemp()
                     st.info("Downloading media files...")
                     downloaded = download_media(media_links, tmp_dir)
+
                     if downloaded:
+                        # Create ZIP archive
                         zip_path = os.path.join(tmp_dir, "media.zip")
                         shutil.make_archive(base_name=zip_path[:-4], format="zip", root_dir=tmp_dir)
+
                         with open(zip_path, "rb") as f:
                             st.download_button(
                                 label="📦 Download all media as ZIP",
@@ -98,7 +120,8 @@ if st.button("Scrape"):
                                 file_name="media.zip",
                                 mime="application/zip",
                             )
-                        st.subheader("Preview and Download Individual Files")
+
+                        st.subheader("Preview & Individual Downloads")
                         for file_path, url in zip(downloaded, media_links):
                             name = os.path.basename(file_path)
                             if name.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")):
@@ -111,7 +134,9 @@ if st.button("Scrape"):
                                         mime="image/*",
                                         key=f"img_{name}",
                                     )
-                            elif name.lower().endswith((".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv")):
+                            elif name.lower().endswith(
+                                (".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv")
+                            ):
                                 st.video(file_path, format="video/mp4")
                                 with open(file_path, "rb") as vid_f:
                                     st.download_button(
